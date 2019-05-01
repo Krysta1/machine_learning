@@ -1,6 +1,6 @@
-import collections
 from math import *
 
+MODE = 'MAX'  # a variable to control the way select two clusters(MIN for single linkage and MAX for complete linkage)
 training_data = [[170, 57, 32, 0],
                  [192, 95, 28, 1],
                  [150, 45, 30, 0],
@@ -16,9 +16,8 @@ training_data = [[170, 57, 32, 0],
                  [160, 50, 31, 0],
                  [175, 72, 30, 1]]
 
-mode = 'MIN'
 
-
+# calculate two lists' Euclidean distance.
 def cal_distance(vec1, vec2):
     tmp = 0
     for i in range(len(vec1)):
@@ -26,133 +25,79 @@ def cal_distance(vec1, vec2):
     return sqrt(tmp)
 
 
-# print(cal_distance(training_data[0][:3], training_data[3][:3]))
+# initialize the distance between each two samples
+# return a dictionary the key is (X, X) and the value is the distance.
+def init_distance_dic():
+    distance_dic = {}
+    for i in range(len(training_data)):
+        for j in range(i + 1, len(training_data)):
+            s = (i, j)
+            distance_dic[s] = cal_distance(training_data[i][:3], training_data[j][:3])
+    return distance_dic
 
-distance_dic = collections.OrderedDict()
 
-for i in range(len(training_data)):
-    for j in range(i + 1, len(training_data)):
-        s = (i, j)
-        distance_dic[s] = cal_distance(training_data[i][:3], training_data[j][:3])
-sorted_distance = sorted(distance_dic.items(), key=lambda x: x[1])
-# [((3, 6), 1.0), ((9, 11), 3.605551275463989), ((10, 13), 3.605551275463989), ((8, 12), 5.0990195135927845)......]
-if mode == 'MAX':
-    set_list = []
-    for node, distance in sorted_distance:
-        flag = 0
-        tmp1, tmp2 = None, None
-        i_in_x, j_in_x = False, False
-        i, j = node
-        for x in set_list:
-            # print(x)
-            if i in x and j in x:
-                flag = 3
-            else:
-                if i in x:
-                    i_in_x = True
-                    tmp1 = x
-                    flag += 1
-                if j in x:
-                    j_in_x = True
-                    tmp2 = x
-                    flag += 1
+# get the minimum distance in the current tree and select the minimum one
+# return the minimum distance and two nodes which including the two examples
+def min_distance(current_tree, dic, step):
+    min_dis = inf
+    for i in range(len(current_tree)):  # loop all the clusters in the current tree
+        for j in range(i + 1, len(current_tree)):
+            for x in current_tree[i]:  # loop all the samples in each clusters
+                for y in current_tree[j]:
+                    x1, x2 = min(x, y), max(x, y)  # keep the smaller index in the front because the dictionary format
+                    if dic[(x1, x2)] < min_dis:  # save the smaller distance
+                        min_dis = dic[(x1, x2)]
+                        tmp1, tmp2 = i, j
+                        first_index, second_index = x1, x2
+    print("The {}th step: The minimum distance is {} between {} and {}".format(step, min_dis, first_index, second_index))
+    print("Merge {} {}".format(current_tree[tmp1], current_tree[tmp2]))
+    return min_dis, current_tree[tmp1], current_tree[tmp2]
 
-        if flag == 0:
-            print("Merge {} {}".format(i, j))
-            set_list.append({i, j})
 
-        if flag == 1:
-            if i_in_x:
-                print("Merge {} {}".format(tmp1, node))
-                set_list.remove(tmp1)
-                tmp1.add(j)
-                set_list.append(tmp1)
+# get the maximum distance in the current tree and select the minimum one
+# return the minimum distance and two nodes which including the two examples
+def max_distance(current_tree, dic, step):
+    min_dis = inf
+    for i in range(len(current_tree)):
+        for j in range(i + 1, len(current_tree)):
+            max_dis = -inf
+            for x in current_tree[i]:
+                for y in current_tree[j]:
+                    x1, x2 = min(x, y), max(x, y)
+                    if dic[(x1, x2)] > max_dis:
+                        max_dis = dic[(x1, x2)]
+            if max_dis < min_dis:
+                min_dis = max_dis
+                first_index, second_index = x, y
+                first_node, second_node = current_tree[i], current_tree[j]
+    print("The {}th step: The minimum distance is {} between {} and {}".format(step, min_dis, first_index, second_index))
+    print("Merge {} {}".format(first_node, second_node))
 
-            if j_in_x:
-                print("Merge {} {}".format(node, tmp2))
-                set_list.remove(tmp2)
-                tmp2.add(i)
-                set_list.append(tmp2)
+    return min_dis, first_node, second_node
 
-        if flag == 2:
-            print("Merge {} {}".format(tmp1, tmp2))
-            set_list.remove(tmp1)
-            set_list.remove(tmp2)
-            tmp = tmp1 | tmp2
-            set_list.append(tmp)
 
-        if flag == 3:
-            continue
-
-        for x in sorted_distance:
-            if (i, j) == x[0]:
-                min_distance = x[1]
-
-        print("The minimum distance is {}".format(min_distance))
-
-        print("After merging: {}".format(set_list))
-        if len(set_list[0]) == 14:
-            print("..................")
-            print("Finish clustering")
+if __name__ == "__main__":
+    hierarchy_tree = [[x] for x in range(14)]
+    # [[0], [1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13]]
+    distance_dic = init_distance_dic()
+    step = 0
+    if MODE == "MIN":
+        print("Single linkage...............")
+    else:
+        print("Complete linkage...............")
+    while True:
+        step += 1
+        if len(hierarchy_tree) == 2:
             break
+        if MODE == "MIN":
+            minimum_dis, first_node, second_node = min_distance(hierarchy_tree, distance_dic, step)
+        else:
+            minimum_dis, first_node, second_node = max_distance(hierarchy_tree, distance_dic, step)
 
+        hierarchy_tree.remove(first_node)
+        hierarchy_tree.remove(second_node)
 
-if mode == "MIN":
-    set_list = []
-    for node, distance in sorted_distance:
-        flag = 0
-        tmp1, tmp2 = None, None
-        i_in_x, j_in_x = False, False
-        i, j = node
-        for x in set_list:
-            # print(x)
-            if i in x and j in x:
-                flag = 3
-            else:
-                if i in x:
-                    i_in_x = True
-                    tmp1 = x
-                    flag += 1
-                if j in x:
-                    j_in_x = True
-                    tmp2 = x
-                    flag += 1
+        tmp = list(set(first_node) | set(second_node))
+        hierarchy_tree.append(tmp)
+        print(hierarchy_tree)
 
-        if flag == 0:
-            print("Merge {} {}".format(i, j))
-            set_list.append({i, j})
-
-        if flag == 1:
-            if i_in_x:
-                print("Merge {} {}".format(tmp1, node))
-                set_list.remove(tmp1)
-                tmp1.add(j)
-                set_list.append(tmp1)
-
-            if j_in_x:
-                print("Merge {} {}".format(node, tmp2))
-                set_list.remove(tmp2)
-                tmp2.add(i)
-                set_list.append(tmp2)
-
-        if flag == 2:
-            print("Merge {} {}".format(tmp1, tmp2))
-            set_list.remove(tmp1)
-            set_list.remove(tmp2)
-            tmp = tmp1 | tmp2
-            set_list.append(tmp)
-
-        if flag == 3:
-            continue
-
-        for x in sorted_distance:
-            if (i, j) == x[0]:
-                min_distance = x[1]
-
-        print("The minimum distance is {}".format(min_distance))
-
-        print("After merging: {}".format(set_list))
-        if len(set_list[0]) == 14:
-            print("..................")
-            print("Finish clustering")
-            break
