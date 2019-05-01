@@ -1,3 +1,3 @@
 # machine_learning
 
-Machine Learning homework and project in uta
+Machine Learning(CSE 6363) homework and project in UTA.
