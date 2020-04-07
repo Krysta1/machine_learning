@@ -1,130 +1,109 @@
 import numpy as np
-from matplotlib import pyplot as plt
-
-# TD is the training data, woman = 0; man = 1
-W = 0
-M = 1
-TD = [((170, 57, 32), W),
-      ((192, 95, 28), M),
-      ((150, 45, 30), W),
-      ((170, 65, 29), M),
-      ((175, 78, 35), M),
-      ((185, 90, 32), M),
-      ((170, 65, 28), W),
-      ((155, 48, 31), W),
-      ((160, 55, 30), W),
-      ((182, 80, 30), M),
-      ((175, 69, 28), W),
-      ((180, 80, 27), M),
-      ((160, 50, 31), W),
-      ((175, 72, 30), M)]
+import pandas as pd
+import matplotlib.pyplot as plt
 
 
-class LDA(object):
-    def __init__(self):
-        pass
+def load_data():  # load the training data and test data
+    train = pd.read_csv('training.txt', sep=',', header=None, dtype={3: str})
+    test = pd.read_csv('test.txt', sep=',', header=None, dtype={3: str})
 
-    def fit(self, data):
-        """
-        using Training data to calculation the Various parameters
-        :param data: Training data
-        :return:
-        """
-        Wdata = []
-        Mdata = []
-        for k in data:
-            if k[1] == W:
-                Wdata.append(list(k[0]))
-            else:
-                Mdata.append(k[0])
-        # Put data with attributes for woman in wdata
-        wdata = np.asarray(Wdata)
-        print(wdata)
+    train[3] = train[3].replace(['M', 'W'], [1, 0])
+    test[3] = test[3].replace(['M', 'W'], [1, 0])
 
-        # Put data with attributes for men in mdata
-        mdata = np.asarray(Mdata)
-        print(mdata)
+    train_man = train.loc[(train[3] == 1)].iloc[:, 0:-1]
+    train_woman = train.loc[(train[3] == 0)].iloc[:, 0:-1]
+    #     print(train_man)
+    train_man = np.mat(train_man).T
+    train_woman = np.mat(train_woman).T
 
-        # calculation the mean of woman and man
-        self.wmean = np.expand_dims(np.mean(wdata, 0), 1)
-        print(self.wmean)
-        self.mmean = np.expand_dims(np.mean(mdata, 0), 1)
+    test_man = test.loc[(test[3] == 1)].iloc[:, 0:-1]
+    test_woman = test.loc[(test[3] == 0)].iloc[:, 0:-1]
+    test_man = np.mat(test_man)
+    test_woman = np.mat(test_woman)
 
-        # calculation the Covariance of man and woman
-        print((wdata.T - self.wmean).shape, ((wdata.T - self.wmean).T).shape)
-        Covariance1 = np.matmul(wdata.T - self.wmean, (wdata.T - self.wmean).T)
-        Covariance2 = np.matmul(mdata.T - self.mmean, (mdata.T - self.mmean).T)
+    return train_man, train_woman, test_man, test_woman
 
-        # calculation the Covariance of Training data
-        self.Covariance = (Covariance1 + Covariance2) / (len(data) - 2)
 
-        self.W = np.dot(np.linalg.inv(self.Covariance), self.wmean - self.mmean)
-        print(self.W)
-        self.b = -1 / 2 * np.dot((self.wmean + self.mmean).T, self.W) + np.log(wdata.shape[0] / mdata.shape[0])
-        return wdata, mdata
+def generate_data(man, woman):  # generate the data of man and women
+    man_T, woman_T = man.T, woman.T
+    w_mean = np.mean(woman_T, 0).T
+    m_mean = np.mean(man_T, 0).T
+    cov1 = np.matmul(man_T.T - m_mean, (man_T.T - m_mean).T)
+    cov2 = np.matmul(woman_T.T - w_mean, (woman_T.T - w_mean).T)
+    cov = (cov1 + cov2) / (len(man_T) + len(woman_T) - 2)
+    mean_women = np.reshape(w_mean, [3]).tolist()[0]
+    mean_man = np.reshape(m_mean, [3]).tolist()[0]
+    generate_w_data = np.random.multivariate_normal(mean_women, cov, 50)
+    generate_m_data = np.random.multivariate_normal(mean_man, cov, 50)
+    return generate_m_data, generate_w_data
 
-    def plot(self, wdata, mdata):
-        '''
-        This function is used to Drawing
-        :return:
-        '''
-        # print("nmb", np.reshape(self.wmean, [3]))
-        wdata1 = np.random.multivariate_normal(np.reshape(self.wmean, [3]), self.Covariance, 50)
-        mdata2 = np.random.multivariate_normal(np.reshape(self.mmean, [3]), self.Covariance, 50)
-        print("nmb", wdata1)
-        plt.figure()
-        x = np.arange(100, 240, 1)
-        y = (-x * float(self.W[0]) - float(self.b)) / float(self.W[1])
-        plt.plot(x, y, 'r')
-        # Drawing the point of generated data.red is woman; blue is man.
-        plt.scatter(wdata1[:, 0], wdata1[:, 1], c='r')
-        plt.scatter(mdata2[:, 0], mdata2[:, 1], c='b')
 
-        # Drawing the point of training data.yellow is woman; black is man.
-        plt.scatter(wdata[:, 0], wdata[:, 1], c='y')
-        plt.scatter(mdata[:, 0], mdata[:, 1], c='black')
-        plt.show()
+def draw(man, woman, w, mean1, mean2):  # plot a picture of all the original data and generated data.
+    # x = np.arange(130, 200, 5)
+    # tmp = w[0][0] / w[1][0]
+    # # calculate the y values for given x
+    # y = - tmp * x + 0.5 * tmp * (mean1[0][0] + mean2[0][0]) + 0.5 * (mean1[1][0] + mean2[1][0])
+    # y = np.array(y).T
 
-    def predict(self, testData):
-        '''
-        This function is used to predict the testData
-        :param testData:
-        :return: 0 / 1 that mean Man or Woman
-        '''
-        testData = np.asarray(testData)
-        test_Value = np.matmul(testData, self.W) + self.b
-        print(test_Value)
-        if test_Value > 0:
-            return W
+    generate_m_data, generate_w_data = generate_data(man, woman)
+    plt.ylim(20, 110)
+    plt.xlim(130, 200)
+    # plt.plot(x, y, 'r')
+    plt.xlabel("Height")
+    plt.ylabel("Weight")
+    # draw generated data: man in blue and woman in black
+    plt.scatter(generate_w_data[:, 0], generate_w_data[:, 1], c='r')
+    plt.scatter(generate_m_data[:, 0], generate_m_data[:, 1], c='b')
+    # draw original data: man in yellow and woman in green
+    plt.scatter(man[0, :].tolist(), man[1, :].tolist(), c='black')
+    plt.scatter(woman[0, :].tolist(), woman[1, :].tolist(), c='g')
+    plt.show()
+
+
+def compute_mean(samples):  # calculate the mean
+    mean_mat = np.mean(samples, axis=1)
+    return mean_mat
+
+
+def cal_inclass_scatter(samples, mean):  # calculate the in class scatter
+    dimens, nums = samples.shape[:2]
+    samples_mean = samples - mean
+    s_in = 0
+    for i in range(nums):
+        x = samples_mean[:, i]
+        s_in += np.dot(x, x.T)
+    return s_in
+
+
+def precdict(test_list, w, mean1, mean2):  # predict the test data in test list
+    for test in test_list:
+        test = np.array(test)
+        if np.dot(w.T, test.T - 0.5 * (mean1 + mean2)) > 0:
+            res = "Man"
         else:
-            return M
+            res = "Woman"
+        print("Predicting %s and the result is %s" % (test[0], res))
+    return res
 
 
-if __name__ == "__main__":
-    lda = LDA()
-    wdata, mdata = lda.fit(TD)
-    lda.plot(wdata, mdata)
-    res1 = lda.predict([(155, 40, 35)])
-    if res1 == 0:
-        print('The predict value is :Woman')
-    else:
-        print('The predict value is :Man')
-    print('-----------------------------------')
-    res2 = lda.predict([(170, 70, 32)])
-    if res2 == 0:
-        print('The predict value is :Woman')
-    else:
-        print('The predict value is :Man')
-    print('-----------------------------------')
-    res3 = lda.predict([(175, 70, 35)])
-    if res3 == 0:
-        print('The predict value is :Woman')
-    else:
-        print('The predict value is :Man')
-    print('-----------------------------------')
-    res4 = lda.predict([(180, 90, 20)])
-    if res4 == 0:
-        print('The predict value is :Woman')
-    else:
-        print('The predict value is :Man')
-    print('-----------------------------------')
+if __name__ == '__main__':
+    training_man, training_women, test_man, test_woman = load_data()
+
+    # calculate the mean of two classes
+    mean1 = compute_mean(training_man)
+    mean2 = compute_mean(training_women)
+
+    # calculate the with in class scatter of two classes
+    scatter_in1 = cal_inclass_scatter(training_man, mean1)
+    scatter_in2 = cal_inclass_scatter(training_women, mean2)
+    scatter_in = (scatter_in1 + scatter_in2)
+
+    # calculate the weights
+    w = np.dot(scatter_in.I, mean1 - mean2)
+
+    # plot a picture with original data and generated data and decision boundary
+    draw(training_man, training_women, w, mean1, mean2)
+
+    # predict the woman test set and man test set
+    precdict(test_woman, w, mean1, mean2)
+    precdict(test_man, w, mean1, mean2)

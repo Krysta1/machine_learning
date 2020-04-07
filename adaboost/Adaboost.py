@@ -105,5 +105,3 @@ class AdaboostClassifier:
         self.times = i + 1
         return self.times, self.alpha, self.weak, W[i]
 
-
-

@@ -13,9 +13,6 @@ class KNN:
     """
     def __init__(self, k_value, age_included, target_value_list, training_data):
         if age_included == 0:
-
-            
-
             self.loop_range = 2  # use to control whether use the age feature or not
         else:
             self.loop_range = 3
